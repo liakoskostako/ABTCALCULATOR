@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Athens Bus Transfer - Bus Cost Calculator</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .header {
+      background: #111827;
+      color: #ffffff;
+      padding: 28px;
+      border-radius: 18px;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+    }
+
+    .header p {
+      margin: 0;
+      color: #d1d5db;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 18px;
+      padding: 22px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .card h2 {
+      margin: 0 0 18px;
+      font-size: 20px;
+    }
+
+    .section-title {
+      margin-top: 22px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 7px;
+      font-size: 14px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
+      font-size: 15px;
+      margin-bottom: 15px;
+      background: #ffffff;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: #111827;
+    }
+
+    button {
+      width: 100%;
+      border: none;
+      border-radius: 14px;
+      padding: 15px;
+      background: #111827;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    button:hover { background: #374151; }
+
+    .secondary-btn {
+      background: #e5e7eb;
+      color: #111827;
+      margin-bottom: 15px;
+    }
+
+    .secondary-btn:hover { background: #d1d5db; }
+
+    .two-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 15px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .checkbox-row input {
+      width: auto;
+      margin: 0;
+    }
+
+    #map {
+      width: 100%;
+      height: 280px;
+      border-radius: 16px;
+      background: #e5e7eb;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #6b7280;
+      text-align: center;
+      padding: 16px;
+    }
+
+    .maps-status {
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #4b5563;
+      line-height: 1.45;
+      margin-bottom: 15px;
+    }
+
+    .result-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 11px 0;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 15px;
+    }
+
+    .result-row strong { font-size: 16px; }
+
+    .total {
+      margin-top: 18px;
+      padding: 18px;
+      border-radius: 16px;
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .total .label {
+      color: #d1d5db;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .total .amount {
+      font-size: 32px;
+      font-weight: 800;
+    }
+
+    .note {
+      margin-top: 14px;
+      padding: 12px;
+      background: #f9fafb;
+      border-radius: 12px;
+      font-size: 13px;
+      color: #4b5563;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 820px) {
+      .container { padding: 14px; }
+      .grid { grid-template-columns: 1fr; }
+      .two-cols { grid-template-columns: 1fr; }
+      .header h1 { font-size: 24px; }
+      .total .amount { font-size: 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Athens Bus Transfer</h1>
+      <p>Υπολογιστής εξόδων και τελικής τιμής πούλμαν</p>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Google Maps διαδρομή</h2>
+
+        <label for="origin">Αναχώρηση</label>
+        <input type="text" id="origin" value="Αθήνα" placeholder="π.χ. Αθήνα" />
+
+        <label for="destination">Προορισμός</label>
+        <input type="text" id="destination" value="Ναύπλιο" placeholder="π.χ. Ναύπλιο" />
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="roundTrip" checked />
+          <span>Με επιστροφή</span>
+        </div>
+
+        <button class="secondary-btn" onclick="calculateRoute()">Υπολογισμός διαδρομής</button>
+
+        <div id="map">Ο χάρτης θα εμφανιστεί εδώ όταν φορτώσει το Google Maps.</div>
+        <div id="mapsStatus" class="maps-status">
+          Το Google Maps φορτώνει αυτόματα. Αν δεν εμφανιστεί ο χάρτης, έλεγξε αν είναι ενεργό το API key, το billing και τα απαραίτητα APIs.
+        </div>
+
+        <h2 class="section-title">Στοιχεία διαδρομής</h2>
+
+        <label for="busType">Τύπος πούλμαν</label>
+        <select id="busType">
+          <option value="3">50θέσιο - km / 3</option>
+          <option value="3.5">40θέσιο - km / 3.5</option>
+          <option value="4">36θέσιο - km / 4</option>
+          <option value="5.5">20θέσιο - km / 5.5</option>
+        </select>
+
+        <label for="km">Χιλιόμετρα διαδρομής</label>
+        <input type="number" id="km" value="280" min="0" step="0.1" />
+
+        <div class="two-cols">
+          <div>
+            <label for="fuelPrice">Τιμή πετρελαίου / λίτρο (€)</label>
+            <input type="number" id="fuelPrice" value="1.80" min="0" step="0.01" />
+          </div>
+          <div>
+            <label for="tolls">Διόδια (€)</label>
+            <input type="number" id="tolls" value="40" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <button type="button" class="secondary-btn" onclick="openMyDiodia()">Έλεγχος διοδίων (myDiodia)</button>
+
+        <label for="difficulty">Δυσκολία διαδρομής</label>
+        <select id="difficulty">
+          <option value="0">Εύκολη - 0%</option>
+          <option value="0.10">Μέτρια - 10%</option>
+          <option value="0.20">Δύσκολη - 20%</option>
+          <option value="0.30">Πολύ δύσκολη - 30%</option>
+        </select>
+
+        <h2 class="section-title">Οδηγός & λοιπά έξοδα</h2>
+
+        <div class="two-cols">
+          <div>
+            <label for="driverDays">Ημέρες οδηγού</label>
+            <input type="number" id="driverDays" value="" min="0" step="1" />
+          </div>
+          <div>
+            <label for="driverDailyCost">Μισθός οδηγού / ημέρα (€)</label>
+            <input type="number" id="driverDailyCost" value="75" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <div class="two-cols">
+          <div>
+            <label for="meals">Αριθμός γευμάτων οδηγού</label>
+            <input type="number" id="meals" value="" min="0" step="1" />
+          </div>
+          <div>
+            <label for="mealCost">Κόστος ανά γεύμα (€)</label>
+            <input type="number" id="mealCost" value="25" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <div class="two-cols">
+          <div>
+            <label for="nights">Αριθμός διανυκτερεύσεων</label>
+            <input type="number" id="nights" value="0" min="0" step="1" />
+          </div>
+          <div>
+            <label for="nightCost">Κόστος διανυκτέρευσης (€)</label>
+            <input type="number" id="nightCost" value="80" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <h2 class="section-title">Κέρδος & ΦΠΑ</h2>
+
+        <div class="two-cols">
+          <div>
+            <label for="profit">Κέρδος (€)</label>
+            <input type="number" id="profit" value="" min="0" step="0.01" />
+          </div>
+          <div>
+            <label for="vat">ΦΠΑ (%)</label>
+            <input type="number" id="vat" value="13" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <button onclick="calculateCost()">Υπολογισμός κόστους</button>
+      </div>
+
+      <div class="card">
+        <h2>Ανάλυση αποτελέσματος</h2>
+        <div id="results"></div>
+
+        <div class="note">
+          Η προσαύξηση δυσκολίας εφαρμόζεται πάνω στα βασικά έξοδα. Τα χιλιόμετρα μπορούν να μπουν είτε αυτόματα από Google Maps είτε χειροκίνητα.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let map;
+    let directionsService;
+    let directionsRenderer;
+    let googleMapsLoaded = false;
+
+    function euro(value) {
+      return new Intl.NumberFormat('el-GR', {
+        style: 'currency',
+        currency: 'EUR',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }).format(value || 0);
+    }
+
+    function getNumber(id) {
+      const value = parseFloat(document.getElementById(id).value);
+      return isNaN(value) ? 0 : value;
+    }
+
+    function addRow(label, value, strong = false) {
+      return `
+        <div class="result-row">
+          <span>${label}</span>
+          <span>${strong ? '<strong>' + euro(value) + '</strong>' : euro(value)}</span>
+        </div>
+      `;
+    }
+
+    function setStatus(message) {
+      document.getElementById('mapsStatus').innerText = message;
+    }
+
+    function loadGoogleMaps() {
+      const apiKey = 'AIzaSyAyiDGpkIytKhDVSg2xnx8Gc2LJT4kjhc4';
+
+      if (googleMapsLoaded) {
+        setStatus('Το Google Maps έχει ήδη φορτώσει.');
+        return;
+      }
+
+      window.initMap = function () {
+        googleMapsLoaded = true;
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: { lat: 37.9838, lng: 23.7275 },
+          zoom: 8
+        });
+        directionsService = new google.maps.DirectionsService();
+        directionsRenderer = new google.maps.DirectionsRenderer();
+        directionsRenderer.setMap(map);
+        setStatus('Το Google Maps φορτώθηκε. Μπορείς να υπολογίσεις διαδρομή.');
+      };
+
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&callback=initMap&libraries=places`;
+      script.async = true;
+      script.defer = true;
+      script.onerror = function () {
+        setStatus('Δεν φορτώθηκε το Google Maps. Έλεγξε το API key ή τη σύνδεση.');
+      };
+      document.head.appendChild(script);
+    }
+
+    function calculateRoute() {
+      if (!googleMapsLoaded || !directionsService || !directionsRenderer) {
+        setStatus('Πρώτα φόρτωσε το Google Maps με API key.');
+        return;
+      }
+
+      const origin = document.getElementById('origin').value.trim();
+      const destination = document.getElementById('destination').value.trim();
+      const roundTrip = document.getElementById('roundTrip').checked;
+
+      if (!origin || !destination) {
+        setStatus('Συμπλήρωσε αναχώρηση και προορισμό.');
+        return;
+      }
+
+      directionsService.route({
+        origin: origin,
+        destination: destination,
+        travelMode: google.maps.TravelMode.DRIVING,
+        region: 'GR'
+      }, function (response, status) {
+        if (status === 'OK') {
+          directionsRenderer.setDirections(response);
+
+          const route = response.routes[0];
+          let meters = 0;
+
+          route.legs.forEach(function (leg) {
+            meters += leg.distance.value;
+          });
+
+          let km = meters / 1000;
+
+          if (roundTrip) {
+            km = km * 2;
+          }
+
+          document.getElementById('km').value = km.toFixed(1);
+          setStatus(`Απόσταση ${roundTrip ? 'πήγαινε-έλα' : 'μονής διαδρομής'}: ${km.toFixed(1)} km. Τα χιλιόμετρα μπήκαν αυτόματα στον υπολογισμό.`);
+          calculateCost();
+        } else {
+          setStatus('Δεν βρέθηκε διαδρομή. Δοκίμασε πιο συγκεκριμένες διευθύνσεις.');
+        }
+      });
+    }
+
+    function openMyDiodia() {
+      window.open('https://mydiodia.gr/', '_blank');
+    }
+
+    function calculateCost() {
+      const consumptionDivider = getNumber('busType');
+      const km = getNumber('km');
+      const fuelPrice = getNumber('fuelPrice');
+      const tolls = getNumber('tolls');
+      const difficulty = getNumber('difficulty');
+      const driverDays = getNumber('driverDays');
+      const driverDailyCost = getNumber('driverDailyCost');
+      const meals = getNumber('meals');
+      const mealCost = getNumber('mealCost');
+      const nights = getNumber('nights');
+      const nightCost = getNumber('nightCost');
+      const profit = getNumber('profit');
+      const vatPercent = getNumber('vat') / 100;
+
+      const fuelCost = (km / consumptionDivider) * fuelPrice;
+      const driverCost = driverDays * driverDailyCost;
+      const mealsCost = meals * mealCost;
+      const accommodationCost = nights * nightCost;
+
+      const baseExpenses = fuelCost + tolls + driverCost + mealsCost + accommodationCost;
+      const difficultyCharge = baseExpenses * difficulty;
+      const totalExpenses = baseExpenses + difficultyCharge;
+      const priceWithoutVat = totalExpenses + profit;
+      const vatAmount = priceWithoutVat * vatPercent;
+      const finalPrice = priceWithoutVat + vatAmount;
+
+      document.getElementById('results').innerHTML = `
+        ${addRow('Καύσιμα', fuelCost)}
+        ${addRow('Διόδια', tolls)}
+        ${addRow('Οδηγός', driverCost)}
+        ${addRow('Γεύματα οδηγού', mealsCost)}
+        ${addRow('Διαμονή οδηγού', accommodationCost)}
+        ${addRow('Βασικά έξοδα', baseExpenses, true)}
+        ${addRow('Προσαύξηση δυσκολίας', difficultyCharge)}
+        ${addRow('Σύνολο εξόδων', totalExpenses, true)}
+        ${addRow('Κέρδος', profit)}
+        ${addRow('Τιμή χωρίς ΦΠΑ', priceWithoutVat, true)}
+        ${addRow('ΦΠΑ', vatAmount)}
+        <div class="total">
+          <div class="label">Τελική τιμή πελάτη</div>
+          <div class="amount">${euro(finalPrice)}</div>
+        </div>
+      `;
+    }
+
+    window.addEventListener('load', function () {
+      loadGoogleMaps();
+      calculateCost();
+    });
+  </script>
+</body>
+</html>
