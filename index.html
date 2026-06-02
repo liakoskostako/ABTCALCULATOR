@@ -111,6 +111,85 @@
       gap: 12px;
     }
 
+    .main-stop-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+      margin-bottom: 10px;
+    }
+
+    .main-stop-row input {
+      margin-bottom: 0;
+    }
+
+    .remove-main-stop-btn {
+      width: auto;
+      padding: 12px 14px;
+      margin-top: 0;
+      background: #e5e7eb;
+      color: #111827;
+    }
+
+    .extra-route-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .extra-route-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    .remove-extra-route-btn {
+      width: auto;
+      padding: 8px 11px;
+      margin-top: 0;
+      background: #e5e7eb;
+      color: #111827;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .extra-route-km {
+      font-size: 13px;
+      color: #4b5563;
+      margin-top: -4px;
+      margin-bottom: 8px;
+    }
+
+    .duration-info {
+      font-size: 13px;
+      color: #4b5563;
+      background: #f9fafb;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 15px;
+      line-height: 1.45;
+    }
+
+    .extra-return-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 4px 0 12px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .extra-return-row input {
+      width: auto;
+      margin: 0;
+    }
+
     .checkbox-row {
       display: flex;
       align-items: center;
@@ -177,6 +256,28 @@
     .total .amount {
       font-size: 32px;
       font-weight: 800;
+    }
+
+    .offer-price-input {
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid #d1d5db;
+      font-size: 18px;
+      font-weight: 800;
+      text-align: right;
+    }
+
+    .offer-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .offer-actions button {
+      margin-top: 0;
     }
 
     .final-price-input {
@@ -261,12 +362,30 @@
         <label for="destination">Προορισμός</label>
         <input type="text" id="destination" value="Ναύπλιο" placeholder="π.χ. Ναύπλιο" />
 
+        <label>Ενδιάμεσοι προορισμοί βασικής διαδρομής</label>
+        <div id="mainStopsContainer"></div>
+        <button type="button" class="secondary-btn" onclick="addMainStop()">+ Προσθήκη ενδιάμεσου προορισμού</button>
+
         <div class="checkbox-row">
           <input type="checkbox" id="roundTrip" checked />
           <span>Με επιστροφή</span>
         </div>
 
-        <button class="secondary-btn" onclick="calculateRoute()">Υπολογισμός διαδρομής</button>
+        <button class="secondary-btn" onclick="calculateRoute()">Υπολογισμός βασικής διαδρομής</button>
+
+        <h2 class="section-title">Έξτρα διαδρομές</h2>
+
+        <div class="checkbox-row">
+          <input type="checkbox" id="enableExtraRoutes" onchange="toggleExtraRoutes()" />
+          <span>Προσθήκη έξτρα διαδρομών</span>
+        </div>
+
+        <div id="extraRoutesSection" style="display:none;">
+          <div id="extraRoutesContainer"></div>
+          <button type="button" class="secondary-btn" onclick="addExtraRoute()">+ Προσθήκη έξτρα διαδρομής</button>
+          <button type="button" class="secondary-btn" onclick="calculateExtraRoutes()">Υπολογισμός έξτρα χιλιομέτρων</button>
+          <div id="extraRoutesStatus" class="maps-status">Τα έξτρα χιλιόμετρα θα προστεθούν στο σύνολο της βασικής διαδρομής.</div>
+        </div>
 
         <div id="map">Ο χάρτης θα εμφανιστεί εδώ όταν φορτώσει το Google Maps.</div>
         <div id="mapsStatus" class="maps-status">
@@ -284,7 +403,14 @@
         </select>
 
         <label for="km">Χιλιόμετρα διαδρομής</label>
-        <input type="number" id="km" value="280" min="0" step="0.1" oninput="calculateCost()" />
+        <input type="number" id="km" value="280" min="0" step="0.1" oninput="manualKmUpdate()" />
+        <input type="hidden" id="baseKm" value="280" />
+        <input type="hidden" id="extraKm" value="0" />
+        <input type="hidden" id="baseDurationMinutes" value="0" />
+        <input type="hidden" id="extraDurationMinutes" value="0" />
+        <div id="durationInfo" class="duration-info">
+          Χρόνος οδήγησης: -
+        </div>
 
         <div class="two-cols">
           <div>
@@ -365,6 +491,7 @@
     let directionsService;
     let directionsRenderer;
     let googleMapsLoaded = false;
+    let manualOfferPriceWithoutVat = null;
 
     function euro(value) {
       return new Intl.NumberFormat('el-GR', {
@@ -380,17 +507,283 @@
       return isNaN(value) ? 0 : value;
     }
 
-    function addRow(label, value, strong = false) {
-      return `
-        <div class="result-row">
-          <span>${label}</span>
-          <span>${strong ? '<strong>' + euro(value) + '</strong>' : euro(value)}</span>
-        </div>
-      `;
-    }
+    function addRow(label, value, strong = false, isMoney = true) {
+  const displayValue = isMoney ? euro(value) : value;
+
+  return `
+    <div class="result-row">
+      <span>${label}</span>
+      <span>${strong ? '<strong>' + displayValue + '</strong>' : displayValue}</span>
+    </div>
+  `;
+}
 
     function setStatus(message) {
       document.getElementById('mapsStatus').innerText = message;
+    }
+
+    function setExtraStatus(message) {
+      const el = document.getElementById('extraRoutesStatus');
+      if (el) el.innerText = message;
+    }
+
+    function formatDuration(minutes) {
+      minutes = Math.round(minutes || 0);
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+
+      if (hours <= 0) return `${mins} λεπτά`;
+      if (mins === 0) return `${hours} ώρες`;
+      return `${hours} ώρες ${mins} λεπτά`;
+    }
+
+    function updateDurationInfo() {
+      const baseMinutes = getNumber('baseDurationMinutes');
+      const extraMinutes = getNumber('extraDurationMinutes');
+      const totalMinutes = baseMinutes + extraMinutes;
+
+      const el = document.getElementById('durationInfo');
+      if (!el) return;
+
+      el.innerHTML = `
+        Βασικός χρόνος οδήγησης: <strong>${baseMinutes ? formatDuration(baseMinutes) : '-'}</strong><br>
+        Έξτρα χρόνος οδήγησης: <strong>${extraMinutes ? formatDuration(extraMinutes) : '-'}</strong><br>
+        Συνολικός χρόνος οδήγησης: <strong>${totalMinutes ? formatDuration(totalMinutes) : '-'}</strong>
+      `;
+    }
+
+    function cleanPlaceName(value) {
+      return (value || '')
+        .replace(/,\s*Ελλάδα\s*$/i, '')
+        .replace(/,\s*Greece\s*$/i, '')
+        .replace(/\s*,\s*$/, '')
+        .trim();
+    }
+
+    function setupAutocomplete(input) {
+      if (googleMapsLoaded && google.maps.places) {
+        new google.maps.places.Autocomplete(input, {
+          componentRestrictions: { country: 'gr' }
+        });
+      }
+    }
+
+    function addMainStop(value = '') {
+      const container = document.getElementById('mainStopsContainer');
+      const row = document.createElement('div');
+      row.className = 'main-stop-row';
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'main-stop-input';
+      input.placeholder = 'π.χ. Λιβαδειά';
+      input.value = value;
+
+      const removeButton = document.createElement('button');
+      removeButton.type = 'button';
+      removeButton.className = 'remove-main-stop-btn';
+      removeButton.innerText = 'Χ';
+      removeButton.onclick = function () {
+        row.remove();
+      };
+
+      row.appendChild(input);
+      row.appendChild(removeButton);
+      container.appendChild(row);
+
+      setupAutocomplete(input);
+    }
+
+    function getMainStops() {
+      return Array.from(document.querySelectorAll('.main-stop-input'))
+        .map(input => cleanPlaceName(input.value.trim()))
+        .filter(value => value.length > 0);
+    }
+
+    function getMainStopsText() {
+      const stops = getMainStops();
+      return stops.length ? stops.join(' → ') : '-';
+    }
+
+    function manualKmUpdate() {
+      document.getElementById('baseKm').value = getNumber('km');
+      document.getElementById('extraKm').value = 0;
+      document.getElementById('baseDurationMinutes').value = 0;
+      document.getElementById('extraDurationMinutes').value = 0;
+      updateDurationInfo();
+      setExtraStatus('Έγινε χειροκίνητη αλλαγή στα συνολικά χιλιόμετρα. Τα έξτρα χιλιόμετρα και ο χρόνος οδήγησης μηδενίστηκαν.');
+      calculateCost();
+    }
+
+    function updateTotalKm() {
+      const baseKm = getNumber('baseKm');
+      const extraKm = getNumber('extraKm');
+      document.getElementById('km').value = (baseKm + extraKm).toFixed(1);
+      calculateCost();
+    }
+
+    function toggleExtraRoutes() {
+      const enabled = document.getElementById('enableExtraRoutes').checked;
+      const section = document.getElementById('extraRoutesSection');
+      section.style.display = enabled ? 'block' : 'none';
+
+      if (!enabled) {
+        document.getElementById('extraKm').value = 0;
+        updateTotalKm();
+        setExtraStatus('Οι έξτρα διαδρομές απενεργοποιήθηκαν.');
+      } else if (document.querySelectorAll('.extra-route-card').length === 0) {
+        addExtraRoute();
+      }
+    }
+
+    function addExtraRoute() {
+      const container = document.getElementById('extraRoutesContainer');
+      const index = container.children.length + 1;
+
+      const card = document.createElement('div');
+      card.className = 'extra-route-card';
+
+      card.innerHTML = `
+        <div class="extra-route-header">
+          <span>Έξτρα διαδρομή ${index}</span>
+          <button type="button" class="remove-extra-route-btn">Αφαίρεση</button>
+        </div>
+        <label>Από</label>
+        <input type="text" class="extra-origin" placeholder="π.χ. Σαμαρίνα" />
+        <label>Προς</label>
+        <input type="text" class="extra-destination" placeholder="π.χ. Γρεβενά" />
+        <div class="extra-return-row">
+          <input type="checkbox" class="extra-return" />
+          <span>Με επιστροφή</span>
+        </div>
+        <div class="extra-route-km">Χιλιόμετρα: -</div>
+      `;
+
+      card.querySelector('.remove-extra-route-btn').onclick = function () {
+        card.remove();
+        calculateExtraRoutes();
+      };
+
+      card.querySelector('.extra-return').onchange = function () {
+        calculateExtraRoutes();
+      };
+
+      container.appendChild(card);
+
+      setupAutocomplete(card.querySelector('.extra-origin'));
+      setupAutocomplete(card.querySelector('.extra-destination'));
+    }
+
+    function getExtraRoutesText() {
+      const cards = Array.from(document.querySelectorAll('.extra-route-card'));
+      const routes = cards.map(card => {
+        const origin = cleanPlaceName(card.querySelector('.extra-origin').value.trim());
+        const destination = cleanPlaceName(card.querySelector('.extra-destination').value.trim());
+        const hasReturn = card.querySelector('.extra-return')?.checked;
+
+        if (!origin || !destination) return '';
+
+        return hasReturn
+          ? `${origin} → ${destination} → ${origin}`
+          : `${origin} → ${destination}`;
+      }).filter(Boolean);
+
+      return routes.length ? routes.join(' | ') : '-';
+    }
+
+    function calculateExtraRoutes() {
+      if (!document.getElementById('enableExtraRoutes').checked) {
+        document.getElementById('extraKm').value = 0;
+        document.getElementById('extraDurationMinutes').value = 0;
+        updateTotalKm();
+        updateDurationInfo();
+        return;
+      }
+
+      if (!googleMapsLoaded || !directionsService) {
+        setExtraStatus('Το Google Maps δεν έχει φορτώσει ακόμα.');
+        return;
+      }
+
+      const cards = Array.from(document.querySelectorAll('.extra-route-card'));
+      const validCards = cards.filter(card => {
+        const origin = cleanPlaceName(card.querySelector('.extra-origin').value.trim());
+        const destination = cleanPlaceName(card.querySelector('.extra-destination').value.trim());
+        return origin && destination;
+      });
+
+      if (validCards.length === 0) {
+        document.getElementById('extraKm').value = 0;
+        document.getElementById('extraDurationMinutes').value = 0;
+        updateTotalKm();
+        updateDurationInfo();
+        setExtraStatus('Δεν υπάρχουν συμπληρωμένες έξτρα διαδρομές.');
+        return;
+      }
+
+      let totalExtraMeters = 0;
+      let totalExtraSeconds = 0;
+      let completed = 0;
+      let failed = 0;
+
+      validCards.forEach(card => {
+        const origin = cleanPlaceName(card.querySelector('.extra-origin').value.trim());
+        const destination = cleanPlaceName(card.querySelector('.extra-destination').value.trim());
+
+        directionsService.route({
+          origin: origin,
+          destination: destination,
+          travelMode: google.maps.TravelMode.DRIVING,
+          region: 'GR'
+        }, function (response, status) {
+          completed++;
+
+          if (status === 'OK') {
+            let meters = 0;
+            let seconds = 0;
+            response.routes[0].legs.forEach(leg => {
+              meters += leg.distance.value;
+              seconds += leg.duration.value;
+            });
+
+            const hasReturn = card.querySelector('.extra-return')?.checked;
+
+            if (hasReturn) {
+              meters = meters * 2;
+              seconds = seconds * 2;
+            }
+
+            totalExtraMeters += meters;
+            totalExtraSeconds += seconds;
+
+            const km = meters / 1000;
+            const minutes = seconds / 60;
+            const kmBox = card.querySelector('.extra-route-km');
+            kmBox.innerText = `Χιλιόμετρα: ${km.toFixed(1)} km | Χρόνος: ${formatDuration(minutes)}${hasReturn ? ' (με επιστροφή)' : ''}`;
+            kmBox.dataset.km = km;
+            kmBox.dataset.minutes = minutes;
+          } else {
+            failed++;
+            card.querySelector('.extra-route-km').innerText = 'Δεν βρέθηκε διαδρομή.';
+          }
+
+          if (completed === validCards.length) {
+            const extraKm = totalExtraMeters / 1000;
+            const extraMinutes = totalExtraSeconds / 60;
+
+            document.getElementById('extraKm').value = extraKm.toFixed(1);
+            document.getElementById('extraDurationMinutes').value = extraMinutes.toFixed(0);
+
+            updateTotalKm();
+            updateDurationInfo();
+
+            const baseKm = getNumber('baseKm');
+            const totalKm = baseKm + extraKm;
+
+            setExtraStatus(`Βασική διαδρομή: ${baseKm.toFixed(1)} km | Έξτρα διαδρομές: ${extraKm.toFixed(1)} km | Σύνολο: ${totalKm.toFixed(1)} km | Έξτρα χρόνος: ${formatDuration(extraMinutes)}${failed ? ' | Κάποιες έξτρα διαδρομές δεν βρέθηκαν.' : ''}`);
+          }
+        });
+      });
     }
 
     function formatDate(date) {
@@ -515,20 +908,12 @@
         directionsService = new google.maps.DirectionsService();
         directionsRenderer = new google.maps.DirectionsRenderer();
         directionsRenderer.setMap(map);
+
+        setupAutocomplete(document.getElementById('origin'));
+        setupAutocomplete(document.getElementById('destination'));
+        document.querySelectorAll('.main-stop-input, .extra-origin, .extra-destination').forEach(input => setupAutocomplete(input));
+
         setStatus('Το Google Maps φορτώθηκε. Μπορείς να υπολογίσεις διαδρομή.');
-
-        const originInput = document.getElementById('origin');
-        const destinationInput = document.getElementById('destination');
-
-        if (google.maps.places) {
-          new google.maps.places.Autocomplete(originInput, {
-            componentRestrictions: { country: 'gr' }
-          });
-
-          new google.maps.places.Autocomplete(destinationInput, {
-            componentRestrictions: { country: 'gr' }
-          });
-        }
       };
 
       const script = document.createElement('script');
@@ -556,9 +941,19 @@
         return;
       }
 
+      const mainStops = getMainStops();
+      const waypoints = mainStops.map(function (stop) {
+        return {
+          location: stop,
+          stopover: true
+        };
+      });
+
       directionsService.route({
         origin: origin,
         destination: destination,
+        waypoints: waypoints,
+        optimizeWaypoints: false,
         travelMode: google.maps.TravelMode.DRIVING,
         region: 'GR'
       }, function (response, status) {
@@ -572,15 +967,29 @@
             meters += leg.distance.value;
           });
 
+          let seconds = 0;
+
+          route.legs.forEach(function (leg) {
+            seconds += leg.duration.value;
+          });
+
           let km = meters / 1000;
+          let minutes = seconds / 60;
 
           if (roundTrip) {
             km = km * 2;
+            minutes = minutes * 2;
           }
 
-          document.getElementById('km').value = km.toFixed(1);
-          setStatus(`Απόσταση ${roundTrip ? 'πήγαινε-έλα' : 'μονής διαδρομής'}: ${km.toFixed(1)} km. Τα χιλιόμετρα μπήκαν αυτόματα στον υπολογισμό.`);
-          calculateCost();
+          document.getElementById('baseKm').value = km.toFixed(1);
+          document.getElementById('baseDurationMinutes').value = minutes.toFixed(0);
+          updateTotalKm();
+          updateDurationInfo();
+          setStatus(`Βασική απόσταση ${roundTrip ? 'πήγαινε-έλα' : 'μονής διαδρομής'}: ${km.toFixed(1)} km | Χρόνος οδήγησης: ${formatDuration(minutes)}.`);
+
+          if (document.getElementById('enableExtraRoutes').checked) {
+            calculateExtraRoutes();
+          }
         } else {
           setStatus('Δεν βρέθηκε διαδρομή. Δοκίμασε πιο συγκεκριμένες διευθύνσεις.');
         }
@@ -619,6 +1028,16 @@
       const vatAmount = priceWithoutVat * vatPercent;
       const finalPrice = priceWithoutVat + vatAmount;
 
+      const currentOfferInput = document.getElementById('offerPriceWithoutVatOverride');
+      const currentOfferInputValue = currentOfferInput ? parseFloat(currentOfferInput.value) : NaN;
+
+      const offerPriceWithoutVat = manualOfferPriceWithoutVat !== null
+        ? manualOfferPriceWithoutVat
+        : (!isNaN(currentOfferInputValue) && currentOfferInputValue > 0 ? currentOfferInputValue : priceWithoutVat);
+
+      const offerVatAmount = offerPriceWithoutVat * vatPercent;
+      const offerFinalPrice = offerPriceWithoutVat + offerVatAmount;
+
       return {
         days,
         meals,
@@ -627,14 +1046,24 @@
         busName: getBusName(),
         categoryName: getCategoryName(),
         routeType: document.getElementById('roundTrip').checked ? 'Με επιστροφή' : 'Μονή διαδρομή',
-        origin: document.getElementById('origin').value.trim(),
-        destination: document.getElementById('destination').value.trim(),
+        origin: cleanPlaceName(document.getElementById('origin').value.trim()),
+        destination: cleanPlaceName(document.getElementById('destination').value.trim()),
+        mainStopsText: getMainStopsText(),
+        extraRoutesText: getExtraRoutesText(),
+        baseKm: getNumber('baseKm'),
+        extraKm: getNumber('extraKm'),
+        baseDurationMinutes: getNumber('baseDurationMinutes'),
+        extraDurationMinutes: getNumber('extraDurationMinutes'),
+        totalDurationMinutes: getNumber('baseDurationMinutes') + getNumber('extraDurationMinutes'),
         dateFrom: document.getElementById('dateFrom').value,
         dateTo: document.getElementById('dateTo').value,
         vatPercent: getNumber('vat'),
         priceWithoutVat,
         vatAmount,
-        finalPrice
+        finalPrice,
+        offerPriceWithoutVat,
+        offerVatAmount,
+        offerFinalPrice
       };
     }
 
@@ -678,6 +1107,15 @@
       document.getElementById('clientContact').value = '';
       document.getElementById('origin').value = 'Αθήνα';
       document.getElementById('destination').value = '';
+      document.getElementById('mainStopsContainer').innerHTML = '';
+      document.getElementById('enableExtraRoutes').checked = false;
+      document.getElementById('extraRoutesSection').style.display = 'none';
+      document.getElementById('extraRoutesContainer').innerHTML = '';
+      document.getElementById('baseKm').value = '';
+      document.getElementById('extraKm').value = '0';
+      document.getElementById('baseDurationMinutes').value = '0';
+      document.getElementById('extraDurationMinutes').value = '0';
+      updateDurationInfo();
       document.getElementById('roundTrip').checked = true;
       document.getElementById('busType').value = '3';
       document.getElementById('km').value = '';
@@ -690,6 +1128,7 @@
       document.getElementById('nightCost').value = '80';
       document.getElementById('vat').value = '13';
 
+      manualOfferPriceWithoutVat = null;
       setDefaultDates();
       updateSuggestedProfit();
 
@@ -702,8 +1141,6 @@
 
     function openPrintableOffer(language = 'el') {
       try {
-        calculateCost();
-
         const data = getCurrentCalculation();
 
       const clientName = document.getElementById('clientName') ? document.getElementById('clientName').value.trim() : '';
@@ -711,11 +1148,11 @@
       const offerNotes = '';
       const today = formatDateForOffer(new Date().toISOString().split('T')[0]);
 
-      const finalPriceOverride = getNumber('finalPriceOverride');
-      if (finalPriceOverride > 0) {
-        data.finalPrice = finalPriceOverride;
-        data.priceWithoutVat = data.finalPrice / (1 + (data.vatPercent / 100));
-        data.vatAmount = data.finalPrice - data.priceWithoutVat;
+      const offerPriceWithoutVatOverride = getNumber('offerPriceWithoutVatOverride');
+      if (offerPriceWithoutVatOverride > 0) {
+        data.priceWithoutVat = offerPriceWithoutVatOverride;
+        data.vatAmount = data.priceWithoutVat * (data.vatPercent / 100);
+        data.finalPrice = data.priceWithoutVat + data.vatAmount;
       }
 
       const t = language === 'en'
@@ -728,6 +1165,9 @@
             routeDetails: 'Route Details',
             departure: 'Departure',
             destination: 'Destination',
+            mainStops: 'Via',
+            extraRoutes: 'Extra routes',
+            drivingTime: 'Driving time',
             from: 'From',
             to: 'To',
             bus: 'Bus',
@@ -746,6 +1186,9 @@
             routeDetails: 'Στοιχεία διαδρομής',
             departure: 'Αναχώρηση',
             destination: 'Προορισμός',
+            mainStops: 'Μέσω',
+            extraRoutes: 'Έξτρα διαδρομές',
+            drivingTime: 'Χρόνος οδήγησης',
             from: 'Από',
             to: 'Έως',
             bus: 'Πούλμαν',
@@ -942,6 +1385,8 @@
       <div class="grid">
         <div class="row"><span class="label">${t.departure}</span><span class="value">${displayOrigin || '-'}</span></div>
         <div class="row"><span class="label">${t.destination}</span><span class="value">${displayDestination || '-'}</span></div>
+        <div class="row"><span class="label">${t.mainStops}</span><span class="value">${data.mainStopsText}</span></div>
+        <div class="row"><span class="label">${t.extraRoutes}</span><span class="value">${data.extraRoutesText}</span></div>
         <div class="row"><span class="label">${t.from}</span><span class="value">${formatDateForOffer(data.dateFrom)}</span></div>
         <div class="row"><span class="label">${t.to}</span><span class="value">${formatDateForOffer(data.dateTo)}</span></div>
         <div class="row"><span class="label">${t.bus}</span><span class="value">${displayBusName}</span></div>
@@ -952,9 +1397,9 @@
     <div class="section">
       <h2>${t.financialOffer}</h2>
       <div class="price-box">
-        <div class="price-row"><span>${t.priceExVat}</span><span>${euro(data.priceWithoutVat)}</span></div>
-        <div class="price-row"><span>${t.vat} ${data.vatPercent.toFixed(2)}%</span><span>${euro(data.vatAmount)}</span></div>
-        <div class="price-row"><span>${t.totalIncVat}</span><span>${euro(data.finalPrice)}</span></div>
+        <div class="price-row"><span>${t.priceExVat}</span><span>${euro(data.offerPriceWithoutVat || data.priceWithoutVat)}</span></div>
+        <div class="price-row"><span>${t.vat} ${data.vatPercent.toFixed(2)}%</span><span>${euro(data.offerVatAmount || data.vatAmount)}</span></div>
+        <div class="price-row"><span>${t.totalIncVat}</span><span>${euro(data.offerFinalPrice || data.finalPrice)}</span></div>
       </div>
     </div>
 
@@ -990,15 +1435,29 @@
     }
 
 
-    function syncFinalPriceFromOverride() {
-      const override = getNumber('finalPriceOverride');
-      const display = document.getElementById('calculatedFinalPrice');
-      if (display && override > 0) {
-        display.innerText = euro(override);
-      }
+    function syncOfferPriceFromOverride() {
+      const input = document.getElementById('offerPriceWithoutVatOverride');
+      if (!input) return;
+
+      manualOfferPriceWithoutVat = parseFloat(input.value);
+      if (isNaN(manualOfferPriceWithoutVat)) manualOfferPriceWithoutVat = 0;
+
+      const vatPercent = getNumber('vat') / 100;
+      const offerPriceWithoutVat = manualOfferPriceWithoutVat;
+      const offerVatAmount = offerPriceWithoutVat * vatPercent;
+      const offerFinalPrice = offerPriceWithoutVat + offerVatAmount;
+
+      const displayNet = document.getElementById('overridePriceWithoutVat');
+      const displayVat = document.getElementById('overrideVatAmount');
+      const displayFinal = document.getElementById('overrideFinalPrice');
+
+      if (displayNet) displayNet.innerText = euro(offerPriceWithoutVat);
+      if (displayVat) displayVat.innerText = euro(offerVatAmount);
+      if (displayFinal) displayFinal.innerText = euro(offerFinalPrice);
     }
 
     function calculateCost() {
+      manualOfferPriceWithoutVat = null;
       const trip = getTripDates();
       const days = trip.days;
       const driverSalary = calculateDriverSalary(trip.dates);
@@ -1026,6 +1485,10 @@
       const vatAmount = priceWithoutVat * vatPercent;
       const finalPrice = priceWithoutVat + vatAmount;
 
+      const offerPriceWithoutVat = manualOfferPriceWithoutVat !== null ? manualOfferPriceWithoutVat : priceWithoutVat;
+      const offerVatAmount = offerPriceWithoutVat * vatPercent;
+      const offerFinalPrice = offerPriceWithoutVat + offerVatAmount;
+
       document.getElementById('autoInfo').innerHTML = `
         Ημέρες: <strong>${days}</strong><br>
         Καθημερινές: <strong>${driverSalary.weekdays}</strong> × ${euro(getNumber('weekdaySalary'))}<br>
@@ -1035,7 +1498,7 @@
       `;
 
       document.getElementById('results').innerHTML = `
-        ${addRow('Ημέρες', days)}
+	${addRow('Ημέρες', days, false, false)}
         ${addRow('Καύσιμα', fuelCost)}
         ${addRow('Διόδια', tolls)}
         ${addRow('Οδηγός', driverSalary.total)}
@@ -1047,22 +1510,34 @@
         ${addRow('Τιμή χωρίς ΦΠΑ', priceWithoutVat, true)}
         ${addRow('ΦΠΑ', vatAmount)}
         <div class="total">
-          <div class="label">Τελική τιμή πελάτη</div>
-          <div class="amount" id="calculatedFinalPrice">${euro(finalPrice)}</div>
+          <div class="label">Υπολογισμένη τιμή χωρίς ΦΠΑ</div>
+          <div class="amount">${euro(offerPriceWithoutVat)}</div>
+
+          <div class="label" style="margin-top:14px;">Τιμή προσφοράς χωρίς ΦΠΑ</div>
           <input
             type="number"
-            id="finalPriceOverride"
-            class="final-price-input"
-            value="${finalPrice.toFixed(2)}"
+            id="offerPriceWithoutVatOverride"
+            class="offer-price-input"
+            value="${offerPriceWithoutVat.toFixed(2)}"
             min="0"
             step="0.01"
-            oninput="syncFinalPriceFromOverride()"
+            oninput="syncOfferPriceFromOverride()"
           />
+
+          <div class="label" style="margin-top:12px;">Τιμή χωρίς ΦΠΑ</div>
+      <div class="amount" id="overridePriceWithoutVat" style="font-size:22px;">${euro(offerPriceWithoutVat)}</div>
+
+      <div class="label" style="margin-top:12px;">ΦΠΑ</div>
+      <div class="amount" id="overrideVatAmount" style="font-size:22px;">${euro(offerVatAmount)}</div>
+
+      <div class="label" style="margin-top:12px;">Τελική τιμή με ΦΠΑ</div>
+      <div class="amount" id="overrideFinalPrice">${euro(offerFinalPrice)}</div>
         </div>
         <div class="offer-actions">
           <button type="button" class="secondary-btn" onclick="openPrintableOffer('el')">Προσφορά PDF Ελληνικά</button>
           <button type="button" class="secondary-btn" onclick="openPrintableOffer('en')">Offer PDF English</button>
         </div>
+          
       `;
     }
 
